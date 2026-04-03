@@ -14,24 +14,34 @@ class Usuario(AbstractUser):
                             max_length=12,
                             default='estudiante'
                         )
-
+    def save(self, *args, **kwargs):
+        if self.pk is None and self.role == 'estudiante':
+            self.is_active = False
+        super().save(*args, **kwargs)
 
 class PerfilEstudiante(models.Model):
     usuario  = models.OneToOneField(Usuario, on_delete=models.CASCADE,  related_name='perfil_estudiante')
     especialidad = models.CharField(max_length=200)
-    grado = models.CharField(max_length=100)
+    GRADO = [
+        ('4to_medio', '4to_medio'),
+        ('egresado' , 'Egresado')
+    ]
+    grado = models.CharField(choices=GRADO, max_length=15, default='4to_medio')
     video_pitch = models.URLField(blank=True, null=True)
+    
 
 
 class PerfilDocente(models.Model):
     usuario  = models.OneToOneField(Usuario, on_delete=models.CASCADE, related_name='perfil_docente')
     departamento = models.CharField(max_length=200)
+    bio = models.TextField(blank=True, null=True)
 
 
 class PerfilEmpresa(models.Model):
     usuario  = models.OneToOneField(Usuario, on_delete=models.CASCADE, related_name='perfil_empresa')
     nombre_empresa = models.CharField(max_length=200)
     industria  = models.CharField(max_length=200)
+    rut = models.CharField(max_length=12, unique=True, null=True, blank=True)
 
 class Habilidades(models.Model):
     estudiante = models.ForeignKey(PerfilEstudiante, on_delete=models.CASCADE)
