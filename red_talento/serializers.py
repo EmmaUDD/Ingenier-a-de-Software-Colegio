@@ -11,6 +11,9 @@ from .models import (
     Evidencia,
     OfertaLaboral,
     Postulacion,
+    PublicacionesFeed,
+    Reporte,
+    Disponibilidad,
 )
 
 
@@ -31,6 +34,11 @@ class HabilidadSerializer(serializers.ModelSerializer):
         model = Habilidades
         fields = '__all__'
 
+class DisponibilidadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Disponibilidad
+        fields = '__all__'
+
 class EvidenciaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Evidencia
@@ -43,11 +51,32 @@ class OfertaLaboralSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['empresa']
 
+class PublicacionFeedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PublicacionesFeed
+        fields = '__all__'
+        read_only_fields = ['autor', 'fecha']
+
+class ReporteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reporte
+        fields = '__all__'
+        read_only_fields = ['reportado_por', 'fecha']
+
 class PostulacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Postulacion
         fields = '__all__'
         read_only_fields = ['estudiante']
+    def validate(self, data):
+        if self.instance is not None:
+            return data
+        estudiante = self.context['request'].user.perfil_estudiante
+        oferta = data['oferta']
+        existe = Postulacion.objects.filter(estudiante=estudiante, oferta=oferta).exists()
+        if existe:
+            raise serializers.ValidationError('Ya se ha postulado a esta oferta')
+        return data
 
 # Serializer para estudiante
 class RegistroEstudianteSerializer(serializers.Serializer):
@@ -69,6 +98,7 @@ class RegistroEstudianteSerializer(serializers.Serializer):
 class PerfilEstudianteSerializer(serializers.ModelSerializer):
     usuario = UsuarioSerializer() 
     habilidades_aprobadas = serializers.SerializerMethodField()
+    disponibilidad_perfil = serializers.SerializerMethodField()
     class Meta:
         model = PerfilEstudiante
         fields = '__all__'
@@ -76,6 +106,9 @@ class PerfilEstudianteSerializer(serializers.ModelSerializer):
     def get_habilidades_aprobadas(self, obj):
         habilidades = obj.habilidades_set.filter(estado='Aprobado')
         return HabilidadSerializer(habilidades, many=True).data
+    def get_disponibilidad_perfil(self, obj):
+        disponibilidad = obj.disponibilidad_set.all()
+        return DisponibilidadSerializer(disponibilidad, many=True).data
 
 
 # Serializer para docente

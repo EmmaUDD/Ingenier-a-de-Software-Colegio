@@ -11,6 +11,10 @@ from .views import (
     EvidenciasView,
     OfertaLaboralView,
     PostulacionView,
+    PublicacionFeedView,
+    ReporteView,
+    DisponibilidadView,
+    BusquedaEstudiantesView,
     
 )
 
@@ -31,4 +35,11 @@ urlpatterns = [
     path('postulaciones/', PostulacionView.as_view(), name='postulaciones'),
     path('postulaciones/oferta/<int:id>/', PostulacionView.as_view(), name='postulacion_oferta'),
     path('postulaciones/<int:id>/', PostulacionView.as_view(), name='estado_postulacion'),
+    path('feed/', PublicacionFeedView.as_view(), name='feed'),
+    path('feed/<int:id>/', PublicacionFeedView.as_view(), name='feed_detalle'),
+    path('reporte/', ReporteView.as_view(), name='reportes'),
+    path('reporte/<int:id>/', ReporteView.as_view(), name='estado_reporte'),
+    path('disponibilidad/', DisponibilidadView.as_view(), name='disponibilidad'),
+    path('disponibilidad/<id>/', DisponibilidadView.as_view(), name='borrar_disponibilidad'),
+    path('estudiantes/', BusquedaEstudiantesView.as_view(), name='buscador'),
 ]

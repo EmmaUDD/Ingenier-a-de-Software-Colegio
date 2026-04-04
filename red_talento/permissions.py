@@ -1,5 +1,4 @@
 from rest_framework.permissions import BasePermission
-from .models import Usuario
 
 class EsDocente(BasePermission):
     def has_permission(self, request, view):
