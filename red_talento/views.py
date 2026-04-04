@@ -14,9 +14,24 @@ from .serializers import (
     EvidenciaSerializer,
     OfertaLaboralSerializer,
     PostulacionSerializer,
+    PublicacionFeedSerializer,
+    ReporteSerializer,
+    DisponibilidadSerializer,
 )
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import Usuario, PerfilEstudiante, PerfilDocente, PerfilEmpresa, Habilidades, OfertaLaboral, Evidencia, Postulacion
+from .models import (
+    Usuario, 
+    PerfilEstudiante, 
+    PerfilDocente, 
+    PerfilEmpresa,
+    Habilidades, 
+    OfertaLaboral, 
+    Evidencia, 
+    Postulacion, 
+    PublicacionesFeed, 
+    Reporte,
+    Disponibilidad,
+)
 from .permissions import EsDocente, EsEstudiante, EsEmpresa
 from rest_framework.permissions import IsAuthenticated
 
@@ -49,7 +64,7 @@ class HabilidadesView(APIView):
 
     def patch(self, request, id):
         if not EsDocente().has_permission(request, self):
-            return Response({'error': 'Docente sin permisos'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Usuario sin permisos'}, status=status.HTTP_403_FORBIDDEN)
         try:
             habilidad = Habilidades.objects.get(id=id)
         except Habilidades.DoesNotExist:
@@ -59,6 +74,30 @@ class HabilidadesView(APIView):
             serializer.save()
             return Response({'mensaje': 'Habilidad validada'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DisponibilidadView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        if not EsEstudiante().has_permission(request, self):
+            return Response({'error': 'Usuario sin permisos'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = DisponibilidadSerializer(data=request.data)
+        if serializer.is_valid():
+            perfil = request.user.perfil_estudiante
+            serializer.save(estudiante=perfil)
+            return Response({'mensaje': 'Disponibilidad Registrada'}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, id):
+        try: 
+            disponibilidad = Disponibilidad.objects.get(id=id)
+        except Disponibilidad.DoesNotExist:
+            return Response({'error': 'No encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        if not disponibilidad.estudiante == request.user.perfil_estudiante:
+            return Response({'error': 'Usuario sin permisos'}, status=status.HTTP_403_FORBIDDEN)
+        disponibilidad.delete()
+        return Response("Borrada",status=status.HTTP_204_NO_CONTENT)
+
 
 class EvidenciasView(APIView):
     permission_classes = [IsAuthenticated]
@@ -80,6 +119,64 @@ class EvidenciasView(APIView):
         evidencia = perfil.evidencia_set.all()
         serializer = EvidenciaSerializer(evidencia, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class PublicacionFeedView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        serializer = PublicacionFeedSerializer(data=request.data)
+        if serializer.is_valid():
+            autor = request.user
+            serializer.save(autor=autor)
+            return Response({'mensaje': 'Publicación Creada!'}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request):
+        publicacion = PublicacionesFeed.objects.order_by('-fecha')
+        serializer = PublicacionFeedSerializer(publicacion, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def delete(self, request, id):
+        try: 
+            publicacion = PublicacionesFeed.objects.get(id=id)
+        except PublicacionesFeed.DoesNotExist:
+            return Response({'error': 'La publicación no existe'}, status=status.HTTP_404_NOT_FOUND)
+        if not publicacion.autor == request.user:
+            return Response({'error': 'Usuario sin permisos'}, status=status.HTTP_403_FORBIDDEN)
+        publicacion.delete()
+        return Response("Publicación Borrada",status=status.HTTP_204_NO_CONTENT)
+
+
+class ReporteView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        serializer = ReporteSerializer(data=request.data)
+        if serializer.is_valid():
+            reportado_por = request.user
+            serializer.save(reportado_por=reportado_por)
+            return Response({'mensaje': 'Reporte Creado'}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request):
+        if not EsDocente().has_permission(request, self):
+            return Response({'error': 'Usuario sin permisos'}, status=status.HTTP_403_FORBIDDEN)
+        reportes = Reporte.objects.all()
+        serializer = ReporteSerializer(reportes, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def patch(self, request, id):
+        if not EsDocente().has_permission(request, self):
+            return Response({'error': 'Usuario sin permisos'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            reporte = Reporte.objects.get(id=id)
+        except Reporte.DoesNotExist:
+            return Response({'error': 'Reporte no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = ReporteSerializer(reporte, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class OfertaLaboralView(APIView):
     permission_classes = [IsAuthenticated]
@@ -104,7 +201,7 @@ class PostulacionView(APIView):
     def post(self, request):
         if not EsEstudiante().has_permission(request, self):
             return Response({'error': 'Usuario sin permisos'}, status=status.HTTP_403_FORBIDDEN)
-        serializer = PostulacionSerializer(data=request.data)
+        serializer = PostulacionSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save(estudiante=request.user.perfil_estudiante)
             return Response({'mensaje': 'Postulacion Enviada'}, status=status.HTTP_201_CREATED)
@@ -132,7 +229,7 @@ class PostulacionView(APIView):
             return Response({'error': 'Usuario sin permisos'}, status=status.HTTP_403_FORBIDDEN)
         if postulacion.oferta.empresa != request.user.perfil_empresa:
             return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
-        serializer = PostulacionSerializer(postulacion ,data=request.data, partial=True)
+        serializer = PostulacionSerializer(postulacion ,data=request.data, context={'request': request}, partial=True)
         if serializer.is_valid():
             serializer.save()
             if serializer.instance.estado == 'Contratado':
@@ -141,6 +238,19 @@ class PostulacionView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+class BusquedaEstudiantesView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        estudiante = PerfilEstudiante.objects.all()
+        especialidad = request.query_params.get('especialidad')
+        nombre = request.query_params.get('nombre')
+        if especialidad:
+           estudiante = estudiante.filter(especialidad=especialidad)
+        if nombre:
+           estudiante = estudiante.filter(usuario__first_name=nombre)
+        serializer = PerfilEstudianteSerializer(estudiante, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 # Create your views here.
 class RegistroEstudianteView(APIView):
     def post(self, request):

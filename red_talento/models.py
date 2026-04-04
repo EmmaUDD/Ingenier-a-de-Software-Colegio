@@ -29,6 +29,7 @@ class PerfilEstudiante(models.Model):
     grado = models.CharField(choices=GRADO, max_length=15, default='4to_medio')
     video_pitch = models.URLField(blank=True, null=True)
     
+    
 
 
 class PerfilDocente(models.Model):
@@ -62,7 +63,19 @@ class Habilidades(models.Model):
                              default='Pendiente'
                         )
 
+class Disponibilidad(models.Model):
+    estudiante = models.ForeignKey(PerfilEstudiante, on_delete=models.CASCADE)
+    DISPONIBILIDAD = [
+        ('part_time','Part_Time'),
+        ('full_time', 'Full_Time'),
+        ('fines_de_semana', 'Fines_de_Semana'),
+        ('practicas', 'Practicas'),
+    ]
+    disponibilidad = models.CharField(choices=DISPONIBILIDAD,
+                                      max_length=16,
+                                      default='part_time')
 
+    
 class Evidencia(models.Model):
     estudiante = models.ForeignKey(PerfilEstudiante, on_delete=models.CASCADE)
     titulo = models.CharField(max_length=150)
@@ -80,7 +93,8 @@ class OfertaLaboral(models.Model):
     activa = models.BooleanField(default=True)
 
 class Reporte(models.Model):
-    reportado_por = models.ForeignKey(Usuario,  on_delete=models.CASCADE)
+    reportado_por = models.ForeignKey(Usuario,  on_delete=models.CASCADE, related_name='reportado_por')
+    usuario_reportado = models.ForeignKey(Usuario,  on_delete=models.CASCADE, related_name='usuario_reportado')
     motivo = models.CharField(max_length=200)
     descripcion = models.TextField()
     fecha = models.DateTimeField(auto_now_add=True)
@@ -100,3 +114,13 @@ class Postulacion(models.Model):
                ('Negado', 'estado_negado'),
                ('Pendiente', 'estado_pendiente')]
     estado = models.CharField(choices=ESTADOS, default='Pendiente', max_length=15)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['estudiante', 'oferta'], name='estudiante_oferta')
+        ]
+
+class PublicacionesFeed(models.Model):
+    autor = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    tipo = models.CharField(choices=(('post','Post'), ('empleo', 'Empleo'), ('evento', 'Evento')), default='post', max_length= 6)
+    contenido = models.TextField()
+    fecha = models.DateTimeField(auto_now_add=True)
